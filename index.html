@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>54 News HD | Latest News & Broadcast</title>
+  <meta name="description" content="Watch 54 News HD and read the latest news and updates.">
+  <meta name="theme-color" content="#101827">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" href="./assets/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="./assets/icon.svg">
+  <style>
+    :root{--bg:#0b1220;--panel:#152238;--panel2:#101b2d;--red:#e32636;--text:#f8fafc;--muted:#a8b4c7;--line:#283950}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif;padding-bottom:78px}
+    header{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:13px clamp(15px,4vw,42px);background:#111d30;border-bottom:3px solid var(--red)}
+    .brand{display:flex;align-items:center;gap:12px;font-weight:900;font-size:clamp(20px,3vw,30px);letter-spacing:.5px}.brand img{width:46px;height:46px}.brand span{color:var(--red)}
+    .live{font-size:12px;font-weight:800;background:var(--red);padding:7px 11px;border-radius:5px;letter-spacing:1px}
+    .ticker{height:40px;background:var(--red);display:flex;align-items:center;overflow:hidden;font-weight:700}
+    .ticker-label{background:#a70e1b;height:100%;display:flex;align-items:center;padding:0 14px;white-space:nowrap;z-index:1}
+    .ticker-track{white-space:nowrap;display:inline-block;padding-left:100%;animation:scroll 65s linear infinite}.ticker-track span{display:inline-block;padding-right:55px}
+    @keyframes scroll{from{transform:translateX(0)}to{transform:translateX(-100%)}}
+    main{width:min(1100px,94%);margin:24px auto}.video{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:12px;overflow:hidden;box-shadow:0 12px 32px #0008}
+    .video iframe{position:absolute;inset:0;width:100%;height:100%;border:0}.section{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;margin-top:22px}
+    h1,h2{margin:0 0 12px}h1{font-size:clamp(21px,3vw,30px)}h2{font-size:21px;color:#ff5966}.intro{color:var(--muted);line-height:1.6}
+    .stories{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:15px}.story{display:block;text-decoration:none;color:inherit;background:var(--panel2);border:1px solid var(--line);border-radius:9px;overflow:hidden;transition:transform .15s}.story:hover{transform:translateY(-2px)}
+    .story img{width:100%;height:170px;object-fit:cover;background:#26364b}.story-body{padding:14px}.story h3{margin:0 0 8px;font-size:17px;line-height:1.35}.story p{margin:0;color:var(--muted);font-size:14px;line-height:1.5}.date{display:block;color:#93a4bb;font-size:12px;margin-top:11px}
+    .empty{color:var(--muted)}footer{text-align:center;padding:24px;color:#8291a7;font-size:13px}
+    .installbar{position:fixed;bottom:0;left:0;right:0;z-index:5;background:#111d30;border-top:2px solid var(--red);padding:10px 4%;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .installbar strong{display:block}.installbar small{color:var(--muted)}button{border:0;border-radius:7px;background:var(--red);color:white;font-weight:800;padding:10px 15px;cursor:pointer}
+    .modal{display:none;position:fixed;inset:0;background:#000b;z-index:10;align-items:center;justify-content:center;padding:20px}.modal>div{max-width:390px;background:var(--panel);padding:24px;border-radius:12px;line-height:1.6}
+    @media(min-width:700px){main{margin-top:32px}.section{padding:24px}}@media(prefers-reduced-motion:reduce){.ticker-track{animation:none;padding-left:10px}}
+  </style>
+</head>
+<body>
+<header>
+  <div class="brand"><img src="./assets/icon.svg" alt=""><div><span>54 NEWS</span> HD</div></div>
+  <div class="live">● ON AIR</div>
+</header>
+<div class="ticker"><div class="ticker-label">BREAKING</div><div class="ticker-track" id="tickerTrack"><span>Loading latest headlines…</span></div></div>
+<main>
+  <div class="video">
+    <iframe
+      src="https://www.youtube-nocookie.com/embed/videoseries?list=PLBIM0Ccowqhg&autoplay=1&playsinline=1"
+      title="54 News HD YouTube playlist"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+      referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+  </div>
+  <section class="section">
+    <h1>54 News HD – Your News, Your Voice</h1>
+    <p class="intro">Watch the latest programmes, updates and reports from 54 News HD. Select a video in the playlist to continue watching on YouTube.</p>
+  </section>
+  <section class="section">
+    <h2>Latest News</h2>
+    <div class="stories" id="stories"><p class="empty">Loading latest stories…</p></div>
+  </section>
+</main>
+<footer>© <span id="year"></span> 54 News HD. All rights reserved.</footer>
+<div class="installbar" id="installBar"><div><strong>54 News HD App</strong><small>Install for quick access</small></div><button id="installBtn">Install App</button></div>
+<div class="modal" id="iosModal"><div><h2>Install 54 News HD</h2><p>In Safari, tap the Share button, then choose “Add to Home Screen”.</p><button id="closeModal">Got it</button></div></div>
+<script>
+const PLAYLIST_ID = "PLBIM0Ccowqhg";
+const $ = id => document.getElementById(id);
+$("year").textContent = new Date().getFullYear();
+
+function safeText(value) { return String(value ?? ""); }
+async function loadTicker() {
+  try {
+    const res = await fetch("./ticker.json?v=" + Date.now(), {cache:"no-store"});
+    if (!res.ok) throw new Error("Ticker unavailable");
+    const data = await res.json();
+    const headlines = Array.isArray(data.headlines) ? data.headlines.filter(x => typeof x === "string" && x.trim()) : [];
+    const track = $("tickerTrack");
+    track.replaceChildren();
+    const items = headlines.length ? headlines : ["Welcome to 54 News HD"];
+    [...items, ...items].forEach(item => {
+      const span = document.createElement("span");
+      span.textContent = "• " + item;
+      track.appendChild(span);
+    });
+  } catch (e) { console.error(e); }
+}
+async function loadStories() {
+  const container = $("stories");
+  try {
+    const res = await fetch("./posts.json?v=" + Date.now(), {cache:"no-store"});
+    if (!res.ok) throw new Error("Stories unavailable");
+    const posts = await res.json();
+    container.replaceChildren();
+    const published = Array.isArray(posts) ? posts.filter(p => p && p.status !== "draft") : [];
+    if (!published.length) { const p=document.createElement("p");p.className="empty";p.textContent="No stories published yet.";container.append(p);return; }
+    published.sort((a,b) => String(b.date||"").localeCompare(String(a.date||"")));
+    published.forEach(post => {
+      const a=document.createElement("a"); a.className="story"; a.href="./article.html?id="+encodeURIComponent(post.id);
+      if(post.image){const img=document.createElement("img");img.src=post.image;img.alt="";img.loading="lazy";a.append(img);}
+      const body=document.createElement("div");body.className="story-body";
+      const h=document.createElement("h3");h.textContent=safeText(post.title);
+      const p=document.createElement("p");p.textContent=safeText(post.summary || post.content || "").slice(0,150);
+      const d=document.createElement("span");d.className="date";d.textContent=safeText(post.date);
+      body.append(h,p,d);a.append(body);container.append(a);
+    });
+  } catch(e) { container.innerHTML='<p class="empty">News stories are temporarily unavailable.</p>'; console.error(e); }
+}
+loadTicker(); loadStories();
+let deferredPrompt=null;
+const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+const isStandalone=window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone===true;
+if(isStandalone) $("installBar").style.display="none";
+window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredPrompt=e;});
+$("installBtn").addEventListener("click",async()=>{
+  if(deferredPrompt){deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;$("installBar").style.display="none";}
+  else if(isIOS)$("iosModal").style.display="flex";
+  else alert('Open your browser menu and choose "Install app" or "Add to Home screen".');
+});
+$("closeModal").addEventListener("click",()=>$("iosModal").style.display="none");
+if("serviceWorker" in navigator && location.protocol.startsWith("http")) window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(console.error));
+</script>
+</body>
+</html>
