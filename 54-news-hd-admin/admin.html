@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#101827"><title>54 News HD | Admin</title>
+<style>
+:root{--bg:#0b1220;--panel:#152238;--panel2:#101b2d;--red:#e32636;--text:#f8fafc;--muted:#a8b4c7;--line:#2b3c54;--green:#16875d}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}header{padding:18px 4%;background:#111d30;border-bottom:3px solid var(--red);display:flex;justify-content:space-between;align-items:center;gap:12px}header h1{font-size:22px;margin:0}header span{color:#ff5966}.wrap{width:min(1050px,94%);margin:25px auto}.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;margin-bottom:18px}h2{margin:0 0 15px;font-size:19px}label{display:block;font-size:13px;font-weight:700;color:#d8e0eb;margin:13px 0 6px}input,textarea,select{width:100%;padding:11px 12px;border:1px solid #3a4d67;border-radius:7px;background:#0b1628;color:white;font:inherit}textarea{min-height:110px;resize:vertical}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}.btn{padding:10px 15px;border:0;border-radius:7px;background:var(--red);color:white;font-weight:800;cursor:pointer;margin:8px 6px 0 0}.btn.secondary{background:#34465f}.btn.green{background:var(--green)}.btn.danger{background:#a91f2b}.muted{color:var(--muted);font-size:13px;line-height:1.5}.status{margin-top:12px;padding:11px;border-radius:7px;background:#0b1628;color:#b8c8dc;white-space:pre-wrap}.status.error{color:#ff9da5}.status.ok{color:#79e0b6}.hidden{display:none!important}.post{padding:13px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;margin:9px 0;display:flex;justify-content:space-between;gap:12px;align-items:center}.post strong{display:block}.post small{color:var(--muted)}.post-actions{white-space:nowrap}.post-actions button{margin:2px;padding:7px 9px}.topline{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.note{border-left:3px solid #e3a72c;padding:10px 12px;background:#241f17;color:#e9d6a7;font-size:13px;line-height:1.5;margin-top:12px}button:disabled{opacity:.5;cursor:not-allowed}
+</style></head><body>
+<header><h1><span>54 NEWS HD</span> | Administration</h1><a href="#" id="siteLink" style="color:#fff">Website setup</a></header>
+<div class="wrap">
+<section class="panel" id="connectionPanel">
+<h2>1. Connect to the website repository</h2>
+<p class="muted">Enter the GitHub repository that contains the public website. The admin page can live in a different repository.</p>
+<div class="grid">
+<div><label for="owner">GitHub username or organization</label><input id="owner" placeholder="your-github-username"></div>
+<div><label for="repo">Website repository name</label><input id="repo" placeholder="54-news-hd-website"></div>
+<div><label for="branch">Branch</label><input id="branch" value="main"></div>
+</div>
+<label for="token">Fine-grained Personal Access Token</label><input id="token" type="password" autocomplete="off" placeholder="github_pat_…">
+<p class="muted">Token is held in this browser tab's session only. It is not saved in this HTML file or sent anywhere except api.github.com.</p>
+<div class="note"><strong>Required token permissions:</strong> Resource owner = your account/organization; Repository access = only the website repository; Repository permissions → Contents = Read and write. No Actions, Administration, or other permissions are needed. Use HTTPS when hosting this admin page.</div>
+<button class="btn" id="connectBtn">Connect & load content</button><button class="btn secondary" id="forgetBtn">Clear token</button>
+<div class="status" id="connectionStatus" role="status">Not connected.</div>
+</section>
+
+<div id="editorArea" class="hidden">
+<section class="panel">
+<div class="topline"><h2>2. Breaking news ticker</h2><button class="btn green" id="saveTicker">Save ticker</button></div>
+<label for="headlines">One headline per line</label><textarea id="headlines" placeholder="Headline one&#10;Headline two"></textarea>
+<p class="muted">Each line becomes one scrolling headline on the public website.</p><div class="status" id="tickerStatus" role="status"></div>
+</section>
+
+<section class="panel">
+<h2>3. Add or edit a news article</h2>
+<input type="hidden" id="postId">
+<label for="postTitle">Headline / title</label><input id="postTitle" maxlength="180" placeholder="Enter news headline">
+<label for="postSummary">Short summary</label><textarea id="postSummary" style="min-height:75px" maxlength="500" placeholder="Short description shown on the home page"></textarea>
+<label for="postContent">Full article</label><textarea id="postContent" placeholder="Write the complete article here"></textarea>
+<div class="grid">
+<div><label for="postImage">Image URL (optional)</label><input id="postImage" type="url" placeholder="https://example.com/photo.jpg"></div>
+<div><label for="postDate">Publication date</label><input id="postDate" type="date"></div>
+<div><label for="postStatus">Publication status</label><select id="postStatus"><option value="published">Published</option><option value="draft">Draft</option></select></div>
+</div>
+<button class="btn green" id="savePost">Save article</button><button class="btn secondary" id="newPost">Clear form</button>
+<div class="status" id="postStatusMsg" role="status"></div>
+</section>
+
+<section class="panel">
+<div class="topline"><h2>4. Existing articles</h2><button class="btn secondary" id="refreshPosts">Refresh</button></div>
+<div id="postsList"><p class="muted">Connect to load articles.</p></div>
+</section>
+</div>
+</div>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+let config = {owner:"",repo:"",branch:"main"}, token="", posts=[], postsSha=null, tickerSha=null;
+const API="https://api.github.com";
+function status(id,msg,type=""){const el=$(id);el.textContent=msg;el.className="status "+type;}
+function headers(){return {"Accept":"application/vnd.github+json","Authorization":"Bearer "+token,"X-GitHub-Api-Version":"2022-11-28","Content-Type":"application/json"};}
+function fileUrl(path){return `${API}/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}/contents/${path.split("/").map(encodeURIComponent).join("/")}?ref=${encodeURIComponent(config.branch)}`;}
+async function github(path,options={}) {
+  const response=await fetch(path,{...options,headers:{...headers(),...(options.headers||{})}});
+  const data=await response.json().catch(()=>({}));
+  if(!response.ok) throw new Error(data.message || `GitHub API error ${response.status}`);
+  return data;
+}
+async function readFile(path){
+  const data=await github(fileUrl(path));
+  if(data.encoding!=="base64" || !data.content) throw new Error(path+" is not a normal base64 file.");
+  const binary=atob(data.content.replace(/\n/g,""));
+  const bytes=Uint8Array.from(binary,c=>c.charCodeAt(0));
+  return {text:new TextDecoder().decode(bytes),sha:data.sha};
+}
+async function writeFile(path,content,sha,message){
+  const body={message,content:btoa(unescape(encodeURIComponent(content))),branch:config.branch};
+  if(sha) body.sha=sha;
+  return await github(fileUrl(path).split("?")[0],{method:"PUT",body:JSON.stringify(body)});
+}
+function clearForm(){
+  $("postId").value="";$("postTitle").value="";$("postSummary").value="";$("postContent").value="";
+  $("postImage").value="";$("postDate").value=new Date().toISOString().slice(0,10);$("postStatus").value="published";
+}
+async function loadAll(){
+  const [p,t]=await Promise.all([readFile("posts.json"),readFile("ticker.json")]);
+  posts=JSON.parse(p.text);if(!Array.isArray(posts))throw new Error("posts.json must contain a JSON array.");
+  const ticker=JSON.parse(t.text);if(!ticker || !Array.isArray(ticker.headlines))throw new Error("ticker.json must contain a headlines array.");
+  postsSha=p.sha;tickerSha=t.sha;$("headlines").value=ticker.headlines.join("\n");
+  renderPosts();$("editorArea").classList.remove("hidden");
+}
+function renderPosts(){
+  const list=$("postsList");list.replaceChildren();
+  if(!posts.length){const p=document.createElement("p");p.className="muted";p.textContent="No articles yet.";list.append(p);return;}
+  posts.slice().sort((a,b)=>String(b.date||"").localeCompare(String(a.date||""))).forEach(post=>{
+    const row=document.createElement("div");row.className="post";
+    const info=document.createElement("div");const strong=document.createElement("strong");strong.textContent=post.title||"(Untitled)";
+    const small=document.createElement("small");small.textContent=`${post.date||"No date"} · ${post.status||"published"} · ID: ${post.id}`;
+    info.append(strong,small);
+    const actions=document.createElement("div");actions.className="post-actions";
+    const edit=document.createElement("button");edit.className="btn secondary";edit.textContent="Edit";edit.addEventListener("click",()=>editPost(post.id));
+    const del=document.createElement("button");del.className="btn danger";del.textContent="Delete";del.addEventListener("click",()=>deletePost(post.id));
+    actions.append(edit,del);row.append(info,actions);list.append(row);
+  });
+}
+function editPost(id){
+  const p=posts.find(x=>x.id===id);if(!p)return;
+  $("postId").value=p.id;$("postTitle").value=p.title||"";$("postSummary").value=p.summary||"";
+  $("postContent").value=p.content||"";$("postImage").value=p.image||"";$("postDate").value=p.date||"";
+  $("postStatus").value=p.status||"published";window.scrollTo({top:$("postTitle").getBoundingClientRect().top+scrollY-20,behavior:"smooth"});
+}
+async function savePosts(message){
+  const result=await writeFile("posts.json",JSON.stringify(posts,null,2),postsSha,message);
+  postsSha=result.content.sha;renderPosts();
+}
+async function deletePost(id){
+  const p=posts.find(x=>x.id===id);if(!p||!confirm(`Delete "${p.title}"? This will publish the change to the website.`))return;
+  try{posts=posts.filter(x=>x.id!==id);await savePosts("Delete news article: "+p.title);status("postStatusMsg","Article deleted and website updated.","ok");}
+  catch(e){status("postStatusMsg","Could not delete: "+e.message,"error");await loadAll().catch(()=>{});}
+}
+$("connectBtn").addEventListener("click",async()=>{
+  config.owner=$("owner").value.trim();config.repo=$("repo").value.trim();config.branch=$("branch").value.trim()||"main";token=$("token").value.trim();
+  if(!config.owner||!config.repo||!token){status("connectionStatus","Enter the owner, repository, and token.","error");return;}
+  $("connectBtn").disabled=true;status("connectionStatus","Connecting to GitHub…");
+  try{await loadAll();status("connectionStatus","Connected. Website files loaded successfully.","ok");}
+  catch(e){status("connectionStatus","Connection failed: "+e.message,"error");$("editorArea").classList.add("hidden");}
+  finally{$("connectBtn").disabled=false;}
+});
+$("forgetBtn").addEventListener("click",()=>{token="";$("token").value="";posts=[];postsSha=null;tickerSha=null;$("editorArea").classList.add("hidden");status("connectionStatus","Token cleared from this page session.");});
+$("saveTicker").addEventListener("click",async()=>{
+  if(!token)return status("tickerStatus","Connect first.","error");
+  try{const headlines=$("headlines").value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+    const result=await writeFile("ticker.json",JSON.stringify({headlines},null,2),tickerSha,"Update 54 News HD ticker");
+    tickerSha=result.content.sha;status("tickerStatus","Ticker saved. The public website will show the updated headlines after refresh.","ok");
+  }catch(e){status("tickerStatus","Save failed: "+e.message,"error");}
+});
+$("savePost").addEventListener("click",async()=>{
+  if(!token)return status("postStatusMsg","Connect first.","error");
+  const title=$("postTitle").value.trim(),summary=$("postSummary").value.trim(),content=$("postContent").value.trim(),image=$("postImage").value.trim(),date=$("postDate").value,statusValue=$("postStatus").value;
+  if(!title||(!summary&&!content))return status("postStatusMsg","A title and at least a summary or article body are required.","error");
+  if(image){try{const u=new URL(image);if(!["http:","https:"].includes(u.protocol))throw 0;}catch{return status("postStatusMsg","Enter a valid http or https image URL.","error");}}
+  const existingId=$("postId").value;
+  const id=existingId||("news-"+Date.now()+"-"+Math.random().toString(36).slice(2,7));
+  const item={id,title,summary,content,image,date,status:statusValue};
+  const previous=posts;posts=existingId?posts.map(p=>p.id===existingId?item:p):[item,...posts];
+  $("savePost").disabled=true;
+  try{await savePosts((existingId?"Update":"Publish")+" news article: "+title);status("postStatusMsg","Article saved to GitHub. The public website will update automatically when visitors reload.","ok");clearForm();}
+  catch(e){posts=previous;status("postStatusMsg","Save failed: "+e.message,"error");}
+  finally{$("savePost").disabled=false;}
+});
+$("newPost").addEventListener("click",()=>{clearForm();status("postStatusMsg","Form cleared.");});
+$("refreshPosts").addEventListener("click",async()=>{try{await loadAll();status("connectionStatus","Content refreshed from GitHub.","ok");}catch(e){status("connectionStatus","Refresh failed: "+e.message,"error");}});
+$("siteLink").addEventListener("click",e=>{e.preventDefault();const owner=$("owner").value.trim(),repo=$("repo").value.trim();if(owner&&repo)window.open(`https://${owner}.github.io/${repo}/`,"_blank","noopener");else alert("Enter your website repository details first.");});
+clearForm();
+</script></body></html>
